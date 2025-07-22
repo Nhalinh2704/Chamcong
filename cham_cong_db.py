@@ -1,0 +1,36 @@
+
+import sqlite3
+
+DB_PATH = "chamcong.db"
+
+def da_diem_danh(ma_nv, ngay):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM chamcong WHERE ma_nv = ? AND ngay = ?", (ma_nv, ngay))
+    result = cursor.fetchone()[0]
+    conn.close()
+    return result > 0
+
+def ngay_diem_danh_dau(ma_nv):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT MIN(ngay) FROM chamcong WHERE ma_nv = ?", (ma_nv,))
+    result = cursor.fetchone()[0]
+    conn.close()
+    return result
+
+def luu_diem_danh(ma_nv, cong, ghi_chu, ngay):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO chamcong (ma_nv, cong, ghi_chu, ngay) VALUES (?, ?, ?, ?)", (ma_nv, cong, ghi_chu, ngay))
+    conn.commit()
+    conn.close()
+
+def lay_diem_danh_theo_ngay(ngay):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM chamcong WHERE ngay = ?", (ngay,))
+    rows = cursor.fetchall()
+    conn.close()
+    import pandas as pd
+    return pd.DataFrame(rows, columns=["Mã nhân viên", "Công", "Ghi chú", "Ngày"])
