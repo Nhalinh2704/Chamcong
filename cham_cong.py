@@ -7,7 +7,7 @@ import io
 from cham_cong_db import da_diem_danh, luu_diem_danh, ngay_diem_danh_dau, lay_diem_danh_theo_ngay
 
 st.set_page_config(page_title="Chấm công", layout="wide")
-st.title("📝 Ứng dụng chấm công nhân viên")
+st.title("📝 Chấm công P.TKTU")
 
 # Đọc danh sách nhân viên và nghỉ bù
 df_nv = pd.read_excel("nhanvien.xlsx", dtype={'Mã nhân viên': str})
