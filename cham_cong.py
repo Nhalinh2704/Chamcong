@@ -7,7 +7,7 @@ import io
 from cham_cong_db import da_diem_danh, luu_diem_danh, ngay_diem_danh_dau, lay_diem_danh_theo_ngay
 
 st.set_page_config(page_title="Chấm công", layout="wide")
-st.title("📝 Chấm công P.TKTU")
+st.title("📝 Ứng dụng chấm công nhân viên")
 
 # Đọc danh sách nhân viên và nghỉ bù
 df_nv = pd.read_excel("nhanvien.xlsx", dtype={'Mã nhân viên': str})
@@ -49,10 +49,9 @@ with st.form("cham_cong_form"):
                     ngay += timedelta(days=1)
                     continue
                 if da_diem_danh(ma_nv, ngay.strftime("%Y-%m-%d")):
-                    if not da_luu:
-                        ngay_dau = ngay_diem_danh_dau(ma_nv)
+                    ngay_dau = ngay_diem_danh_dau(ma_nv)
+                    if ngay.strftime("%Y-%m-%d") == ngay_dau:
                         st.warning(f"❌ Bạn đã điểm danh ngày hôm nay vào ngày {ngay_dau}.")
-                        da_luu = True
                 else:
                     luu_diem_danh(ma_nv, loai_cong, ghi_chu, ngay.strftime("%Y-%m-%d"))
                     st.success(f"✅ Đã điểm danh thành công ngày {ngay.strftime('%d/%m/%Y')}")
