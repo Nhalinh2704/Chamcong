@@ -34,3 +34,28 @@ def lay_diem_danh_theo_ngay(ngay):
     conn.close()
     import pandas as pd
     return pd.DataFrame(rows, columns=["Mã nhân viên", "Công", "Ghi chú", "Ngày"])
+import sqlite3
+
+def xoa_diem_danh(ma_nv=None, tu_ngay=None, den_ngay=None):
+    conn = sqlite3.connect("chamcong.db")
+    cursor = conn.cursor()
+
+    query = "DELETE FROM chamcong WHERE 1=1"
+    params = []
+
+    if ma_nv:
+        query += " AND ma_nv = ?"
+        params.append(ma_nv)
+
+    if tu_ngay:
+        query += " AND ngay >= ?"
+        params.append(tu_ngay)
+
+    if den_ngay:
+        query += " AND ngay <= ?"
+        params.append(den_ngay)
+
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
+    print("✅ Đã xóa dữ liệu chấm công theo điều kiện.")
