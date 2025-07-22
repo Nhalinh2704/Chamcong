@@ -1,97 +1,70 @@
 
 import streamlit as st
 import pandas as pd
-import sqlite3
-from datetime import datetime, timedelta
-import io
-from cham_cong_db import da_diem_danh, luu_diem_danh, ngay_diem_danh_dau, lay_diem_danh_theo_ngay
+import datetime
+from cham_cong_db import create_db, da_diem_danh, ngay_diem_danh_dau, luu_diem_danh
+import os
 
-st.set_page_config(page_title="Chấm công", layout="wide")
-st.title("📝 Ứng dụng chấm công nhân viên")
+create_db()
 
-# Đọc danh sách nhân viên và nghỉ bù
+# Load danh sách nhân viên
 df_nv = pd.read_excel("nhanvien.xlsx", dtype={'Mã nhân viên': str})
 df_nghi_bu = pd.read_excel("nghi_bu.xlsx", dtype={'Mã nhân viên': str})
-nghi_bu_dict = dict(zip(df_nghi_bu['Mã nhân viên'], df_nghi_bu['Số ngày nghỉ bù']))
 
-cong_options = [
-    "X:8", "X:8 (local)", "X:4,P:4", "P:4,X:4", "NB:8", "X:4,NB:4", "NB:4,X:4",
-    "P:8", "CT:8", "DL:8", "TS:8", "Rv:8"
-]
+st.title("📝 Chấm công hằng ngày P.TKTUVT")
 
-with st.form("cham_cong_form"):
-    ma_nv = st.text_input("Nhập mã nhân viên (6 chữ số):")
-    loai_cong = st.selectbox("Chọn loại công", cong_options)
-    ghi_chu = st.text_input("Ghi chú (nếu có)", value="")
-    col1, col2 = st.columns(2)
-    with col1:
-        tu_ngay = st.date_input("Từ ngày", value=datetime.today())
-    with col2:
-        den_ngay = st.date_input("Đến ngày", value=datetime.today())
+ma_nv = st.text_input("Nhập mã nhân viên (6 chữ số):")
+if ma_nv and len(ma_nv) != 6:
+    st.warning("⚠️ Mã nhân viên phải đủ 6 chữ số.")
 
-    submit = st.form_submit_button("✅ Điểm danh")
+loai_cong = st.selectbox("Chọn loại công", [
+    "X:8", "X:8 (local)", "X:4,P:4", "P:4,X:4", "NB:8", "X:4,NB:4",
+    "NB:4,X:4", "P:8", "CT:8", "DL:8", "TS:8", "Rv:8"
+])
 
-    if submit:
-        if not ma_nv.isdigit() or len(ma_nv) != 6:
-            st.error("Mã nhân viên phải gồm đúng 6 chữ số.")
-        elif tu_ngay < datetime.today().date():
-            st.error("Không thể chọn ngày chấm công trong quá khứ.")
-        elif tu_ngay > den_ngay:
-            st.error("Khoảng ngày không hợp lệ.")
-        elif ma_nv not in df_nv["Mã nhân viên"].astype(str).values:
-            st.error("Mã nhân viên không tồn tại trong danh sách.")
-        else:
-            ngay = tu_ngay
-            da_luu = False
-            while ngay <= den_ngay:
-                if da_diem_danh(ma_nv, ngay.strftime("%Y-%m-%d")):
-                    if not da_luu:
-                        ngay_dau = ngay_diem_danh_dau(ma_nv)
-                        st.warning(f"❌ Bạn đã điểm danh ngày hôm nay vào ngày {ngay_dau}.")
-                        da_luu = True
-                else:
-                    luu_diem_danh(ma_nv, loai_cong, ghi_chu, ngay.strftime("%Y-%m-%d"))
-                    st.success(f"✅ Đã điểm danh thành công ngày {ngay.strftime('%d/%m/%Y')}")
-                ngay += timedelta(days=1)
+ghi_chu = st.text_input("Ghi chú (không bắt buộc):")
 
-# ----- Tải báo cáo theo ngày -----
-st.markdown("---")
-st.subheader("📤 Tải báo cáo chấm công theo ngày")
-
-col1, col2 = st.columns([1, 2])
+today = datetime.date.today()
+col1, col2 = st.columns(2)
 with col1:
-    ngay_xuat = st.date_input("Chọn ngày cần xuất", value=datetime.today())
-
+    start_date = st.date_input("Từ ngày", today)
 with col2:
-    mk = st.text_input("Nhập mật khẩu để tải báo cáo", type="password")
+    end_date = st.date_input("Đến hết ngày", today)
 
-if mk == "66702002":
-    if st.button("📥 Xuất file Excel"):
-        df_diemdanh = lay_diem_danh_theo_ngay(ngay_xuat.strftime("%Y-%m-%d"))
-        df_diemdanh["Mã nhân viên"] = df_diemdanh["Mã nhân viên"].astype(str)
+if start_date < today:
+    st.error("❌ Không được chọn ngày trước ngày hôm nay.")
 
-        # Mapping thông tin nhân viên
-        df_out = pd.merge(df_nv, df_diemdanh[["Mã nhân viên", "Công", "Ghi chú"]], on="Mã nhân viên", how="left")
-        df_out["Công"] = df_out["Công"].fillna("")
-        df_out["Ghi chú"] = df_out["Ghi chú"].fillna("")
+submit = st.button("💾 Điểm danh")
 
-        # Gán công mặc định cho người chưa có công
-        def fill_mac_dinh(row):
-            if row["Công"]:
-                return row["Công"]
-            return "X:8 (local)" if "local" in row["Nhóm"].lower() else "X:8"
+if submit:
+    if not ma_nv or len(ma_nv) != 6:
+        st.error("❌ Vui lòng nhập mã nhân viên hợp lệ.")
+    elif start_date > end_date:
+        st.error("❌ Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc.")
+    else:
+        nv_info = df_nv[df_nv["Mã nhân viên"] == ma_nv]
+        if nv_info.empty:
+            st.error("❌ Mã nhân viên không tồn tại trong danh sách.")
+        else:
+            ho_ten = nv_info.iloc[0]["Họ tên"]
+            don_vi = nv_info.iloc[0]["Đơn vị"]
+            nhom = nv_info.iloc[0]["Nhóm"]
+            sort = nv_info.iloc[0]["SORT"]
+            nghi_bu_row = df_nghi_bu[df_nghi_bu["Mã nhân viên"] == ma_nv]
+            so_ngay_nghi_bu = nghi_bu_row.iloc[0]["Số ngày nghỉ bù"] if not nghi_bu_row.empty else 0
 
-        df_out["Công"] = df_out.apply(fill_mac_dinh, axis=1)
+            da_co_trong_ngay = False
+            for i in range((end_date - start_date).days + 1):
+                ngay = start_date + datetime.timedelta(days=i)
+                ngay_str = ngay.strftime("%Y-%m-%d")
+                if da_diem_danh(ma_nv, ngay_str):
+                    if not da_co_trong_ngay:
+                        ngay_dau = ngay_diem_danh_dau(ma_nv)
+                        st.warning(f"⚠️ Bạn đã điểm danh ngày hôm nay vào ngày {ngay_dau}.")
+                        da_co_trong_ngay = True
+                    continue
 
-        # Thêm STT
-        df_out.insert(0, "STT", range(1, len(df_out) + 1))
-        df_out = df_out[["STT", "Mã nhân viên", "Họ tên", "Đơn vị", "Công", "Ghi chú", "Nhóm"]]
+                luu_diem_danh(ma_nv, ho_ten, don_vi, nhom, sort, ngay_str, loai_cong, ghi_chu)
 
-        # Xuất Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_out.to_excel(writer, sheet_name="ChamCong", index=False)
-        st.download_button("📥 Tải file Excel", output.getvalue(), file_name=f"ChamCong_{ngay_xuat}.xlsx")
-else:
-    if mk != "":
-        st.warning("Sai mật khẩu!")
+            if not da_co_trong_ngay:
+                st.success(f"✅ Bạn đã điểm danh thành công cho các ngày từ {start_date} đến {end_date}.")
