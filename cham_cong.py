@@ -95,3 +95,26 @@ if mk == "66702002":
 else:
     if mk != "":
         st.warning("Sai mật khẩu!")
+# ----- Xóa chấm công theo nhân viên và ngày -----
+st.markdown("---")
+st.subheader("🗑️ Xóa dữ liệu chấm công")
+
+with st.form("xoa_diem_danh_form"):
+    ma_xoa = st.text_input("Nhập mã nhân viên cần xóa:")
+    col1, col2 = st.columns(2)
+    with col1:
+        tu_ngay_xoa = st.date_input("Từ ngày", value=datetime.today().date(), key="tu_ngay_xoa")
+    with col2:
+        den_ngay_xoa = st.date_input("Đến ngày", value=datetime.today().date(), key="den_ngay_xoa")
+
+    confirm_xoa = st.form_submit_button("🗑️ Xóa chấm công")
+
+    if confirm_xoa:
+        if not ma_xoa.isdigit() or len(ma_xoa) != 6:
+            st.error("Mã nhân viên phải gồm đúng 6 chữ số.")
+        elif tu_ngay_xoa > den_ngay_xoa:
+            st.error("Khoảng ngày không hợp lệ.")
+        else:
+            from cham_cong_db import xoa_diem_danh
+            xoa_diem_danh(ma_nv=ma_xoa, tu_ngay=str(tu_ngay_xoa), den_ngay=str(den_ngay_xoa))
+            st.success(f"✅ Đã xóa chấm công của {ma_xoa} từ {tu_ngay_xoa.strftime('%d/%m/%Y')} đến {den_ngay_xoa.strftime('%d/%m/%Y')}")
